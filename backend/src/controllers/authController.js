@@ -1,5 +1,14 @@
 import bcrypt from 'bcrypt';
 import User from '../models/User.js';
+import { env } from '../libs/env.js';
+import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+
+import Session from '../models/Session.js';
+
+const ACCESS_TOKEN_TTL = '30m'
+const REFRESH_TOKEN_TTL = 14 * 24 * 60 * 60 * 1000; // 14 days
+
 export const signUp = async (req, res) => {
     try {
         const { username, password, email, firstName, lastName } = req.body;
@@ -48,7 +57,55 @@ export const signUp = async (req, res) => {
 
 
     } catch (error) {
-        console.error('Lỗi khi gọi signup',error);
+        console.error('Lỗi khi gọi signup', error);
+        res.status(500).json({ message: 'Lỗi hệ thống' });
+    }
+}
+
+
+export const signIn = async (req, res) => {
+    try {
+        const { username, password } = req.body;
+
+        if (!username || !password) {
+            return res.status(400).json({ message: 'Thiếu tên tài khoản hoặc mật khẩu' });
+        }
+
+        // Check if user exists
+        const user = await User.findOne({ username });
+        if (!user) {
+            return res.status(401).json({ message: 'Tài khoản hoặc mật khẩu không chính xác' });
+        }
+
+        // Check if password is correct
+        const isPasswordMatch = await bcrypt.compare(password, user.hashedPassword);
+        if (!isPasswordMatch) {
+            return res.status(401).json({ message: 'Tài khoản hoặc mật khẩu không chính xác' });
+        }
+
+        // Tạo JWT token
+        const accessToken = jwt.sign({ userId: user._id }, env.ACCESS_TOKEN_SECRET, { expiresIn: ACCESS_TOKEN_TTL });
+
+        // Tạo refreshToken để lưu thông tin đăng nhập của user mà không cần phải đăng nhập lại
+        const refreshToken = crypto.randomBytes(32).toString('hex');
+
+        //tạo session mới để lưu refreshToken
+        await Session.create({
+            userId: user._id,
+            refreshToken, expiresAt: new Date(Date.now()) + REFRESH_TOKEN_TTL
+        });
+
+        //trả refreshToken về client thông qua cookie
+        res.cookie('refreshToken', refreshToken, {
+            httpOnly: true,
+            sameSite: 'none',
+            maxAge: REFRESH_TOKEN_TTL
+        });
+
+        return res.status(200).json({ message: `User ${user.displayName} đã đăng nhập`, accessToken });
+
+    } catch (error) {
+        console.error('Lỗi khi gọi signIn', error);
         res.status(500).json({ message: 'Lỗi hệ thống' });
     }
 }
