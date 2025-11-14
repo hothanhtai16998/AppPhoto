@@ -1,5 +1,5 @@
 
-import { useAuthStore } from "@/stores/userAuthStore";
+import { useAuthStore } from "@/stores/useAuthStore";
 import { useEffect } from "react";
 
 const AuthInitializer = ({ children }: { children: React.ReactNode }) => {

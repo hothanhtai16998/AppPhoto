@@ -19,7 +19,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
-import { useAuthStore } from "@/stores/userAuthStore"
+import { useAuthStore } from "@/stores/useAuthStore"
 
 // Define all navigation links
 const navLinksConfig = [

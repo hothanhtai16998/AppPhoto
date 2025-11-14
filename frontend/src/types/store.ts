@@ -1,4 +1,13 @@
 import type { User } from './user';
+import type { Image } from './image';
+
+export type UploadImageData = {
+	image: File;
+	imageTitle: string;
+	imageCategory: string;
+	location?: string;
+	cameraModel?: string;
+};
 
 export interface AuthState {
 	accessToken: string | null;
@@ -25,4 +34,14 @@ export interface AuthState {
 	fetchMe: () => Promise<void>;
 	refresh: () => Promise<void>;
 	initializeApp: () => Promise<void>;
+}
+
+export interface ImageState {
+	images: Image[];
+	loading: boolean;
+	error: string | null;
+	uploadImage: (
+		data: UploadImageData
+	) => Promise<void>;
+	fetchImages: () => Promise<void>;
 }

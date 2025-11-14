@@ -1,4 +1,4 @@
-import { useAuthStore } from "@/stores/userAuthStore";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 function ProfilePage() {
 

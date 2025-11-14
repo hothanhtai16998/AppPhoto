@@ -12,7 +12,9 @@ import 'dotenv/config';
 
 const app = express();
 
-app.use(express.json());
+// Increase the limit for JSON payloads
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 app.use(cors({ origin: env.CLIENT_URL, credentials: true }));
 const PORT = env.PORT || 5001;
@@ -23,7 +25,7 @@ const __dirname = path.resolve();
 // API Routes
 app.use('/api/auth', authRoute);
 app.use('/api/users', protectedRoute, userRoute);
-app.use('/api/images', protectedRoute, imageRoute);
+app.use('/api/images', protectedRoute, imageRoute)
 
 
 if (env.NODE_ENV === 'production') {

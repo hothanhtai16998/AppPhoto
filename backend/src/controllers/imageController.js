@@ -1,46 +1,57 @@
-import Image from '../models/Image.js';
+
 import cloudinary from '../libs/cloudinary.js';
+import Image from '../models/Image.js';
 
-export const getAllImages = async (req, res) => { }
+// Helper function to convert buffer to data URI
+const bufferToDataURI = (buffer, mimeType) => {
+    return `data:${mimeType};base64,${buffer.toString('base64')}`;
+};
 
+export const getAllImages = async (req, res) => {
+    try {
+        const images = await Image.find()
+            .populate('uploadedBy', 'username')
+            .sort({ createdAt: -1 });
+        res.status(200).json({ images });
+    } catch (error) {
+        res.status(500).json({
+            message: 'Server error while fetching images.',
+        });
+    }
+};
 
 export const uploadImage = async (req, res) => {
-    let uploadResponse; // Define it here to access in the catch block
+    let uploadResponse;
     try {
         const userId = req.user._id;
-        // Destructure all expected fields from the JSON body
-        const { imageData, imageTitle, imageCategory, location, cameraModel } = req.body;
+        const { imageTitle, imageCategory, location, cameraModel } = req.body;
 
-        // --- Validation ---
-        if (!imageData) {
-            return res.status(400).json({ message: 'Image data is required.' });
+        if (!req.file) {
+            return res.status(400).json({ message: 'Image file is required.' });
         }
-        if (!imageTitle) {
-            return res.status(400).json({ message: 'Image title is required.' });
-        }
-        if (!imageCategory) {
-            return res.status(400).json({ message: 'Image category is required.' });
-        }
-        // The 'location' field is required in your Image model
-        if (!location) {
-            return res.status(400).json({ message: 'Location is required.' });
+        if (!imageTitle || !imageCategory || !location) {
+            return res
+                .status(400)
+                .json({ message: 'Title, category, and location are required.' });
         }
 
-        // --- Upload to Cloudinary ---
-        // The uploader expects a Base64 Data URI string: "data:image/jpeg;base64,..."
-        uploadResponse = await cloudinary.uploader.upload(imageData, {
-            folder: 'photo-app-images', // Optional: organize uploads into a specific folder
+        // Convert buffer from multer to a Data URI for Cloudinary
+        const b64 = Buffer.from(req.file.buffer).toString('base64');
+        let dataURI = 'data:' + req.file.mimetype + ';base64,' + b64;
+
+        // Upload to Cloudinary
+        uploadResponse = await cloudinary.uploader.upload(dataURI, {
+            folder: 'photo-app-images',
         });
 
-        // --- Create new image document in MongoDB ---
         const newImage = await Image.create({
-            imageUrl: uploadResponse.secure_url, // URL from Cloudinary
-            publicId: uploadResponse.public_id, // Store public_id to allow deletion later
+            imageUrl: uploadResponse.secure_url,
+            publicId: uploadResponse.public_id,
             imageTitle,
             imageCategory,
             uploadedBy: userId,
             location,
-            cameraModel, // This is optional and can be null
+            cameraModel,
         });
 
         res.status(201).json({
@@ -50,25 +61,29 @@ export const uploadImage = async (req, res) => {
     } catch (error) {
         console.error('Error during image upload:', error);
 
-        // --- Suggested Addition: Rollback Logic ---
-        // If image was uploaded to Cloudinary but DB save failed, delete it
+        // If Cloudinary upload succeeded but DB save failed, roll back the upload.
         if (uploadResponse && uploadResponse.public_id) {
-            await cloudinary.uploader.destroy(uploadResponse.public_id);
+            try {
+                await cloudinary.uploader.destroy(uploadResponse.public_id);
+            } catch (e) {
+                console.error('Failed to rollback Cloudinary upload:', e);
+            }
         }
-        // --- End of Addition ---
 
         res.status(500).json({ message: 'Server error while uploading image.' });
     }
-}
+};
 
 export const getImagesByUserId = async (req, res) => {
-    const userId = req.user._id;
-
     try {
-        const images = await Image.find({ uploadedBy: userId });
+        const userId = req.params.userId;
+        const images = await Image.find({ uploadedBy: userId }).sort({
+            createdAt: -1,
+        });
         res.status(200).json({ images });
     } catch (error) {
-        console.error('Error while retrieving images by user:', error);
-        res.status(500).json({ message: 'Server error while retrieving images.' });
+        res.status(500).json({
+            message: 'Server error while fetching user images.',
+        });
     }
-}
+};

@@ -10,7 +10,7 @@ import { z } from "zod"
 import { useForm } from "react-hook-form"
 
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useAuthStore } from "@/stores/userAuthStore"
+import { useAuthStore } from "@/stores/useAuthStore"
 
 const signInSchema = z.object({
     username: z.string().min(6, { message: "Tên đăng nhập phải có ít nhất 3 ký tự." }),

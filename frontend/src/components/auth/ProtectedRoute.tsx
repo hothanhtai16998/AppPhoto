@@ -1,5 +1,5 @@
 import { Navigate, Outlet } from "react-router";
-import { useAuthStore } from "@/stores/userAuthStore"
+import { useAuthStore } from "@/stores/useAuthStore"
 
 const ProtectedRoute = () => {
     const { accessToken, loading } = useAuthStore();
