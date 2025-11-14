@@ -1,15 +1,18 @@
-import Logout from "@/components/auth/Logout"
-import { useAuthStore } from "@/stores/userAuthStore";
+import SearchBar from "@/components/SearchBar"
+import Header from "../components/Header"
+import ImageGrid from "@/components/ImageGrid"
 
 function HomePage() {
-    const user = useAuthStore((s) => s.user);
-
-
     return (
-        <div>
-            {user?.username}
-            <Logout />
-        </div>
+        <>
+            <Header />
+            <main className="homepage">
+                <div className="content-wrapper">
+                    <SearchBar />
+                    <ImageGrid />
+                </div>
+            </main>
+        </>
     )
 }
 
