@@ -19,17 +19,41 @@ export const authService = {
 			},
 			{ withCredentials: true }
 		);
+
 		return res.data;
 	},
+
 	signIn: async (
 		username: string,
 		password: string
 	) => {
 		const res = await api.post(
-			'/auth/signin',
+			'auth/signin',
 			{ username, password },
 			{ withCredentials: true }
 		);
-		return res.data;
+		return res.data; // access token
+	},
+
+	signOut: async () => {
+		return api.post('/auth/signout', {
+			withCredentials: true,
+		});
+	},
+
+	fetchMe: async () => {
+		const res = await api.get(
+			'/users/me',
+			{ withCredentials: true }
+		);
+		return res.data.user;
+	},
+
+	refresh: async () => {
+		const res = await api.post(
+			'/auth/refresh',
+			{ withCredentials: true }
+		);
+		return res.data.accessToken;
 	},
 };

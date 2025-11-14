@@ -1,46 +1,41 @@
-import jwt from 'jsonwebtoken';
-import User from '../models/User.js';
-import { env } from '../libs/env.js';
+// @ts-nocheck
+import jwt from "jsonwebtoken";
+import User from "../models/User.js";
 
+// authorization - xác minh user là ai
 export const protectedRoute = (req, res, next) => {
     try {
-        //lấy token từ header
-        const authHeader = req.headers['authorization'];
+        // lấy token từ header
+        const authHeader = req.headers["authorization"];
+        const token = authHeader && authHeader.split(" ")[1]; // Bearer <token>
 
-        //authorization trong Header có dạng "Bearer <token_string>" 
-        // => khi chuyển qua array => ['Bearer', '<token_string>']
-        // authHeader && authHeader.split(' ')[1];
-        // authHear ở bên trái sẽ kiểm tra authHeader có null hay undefined không
-        //nếu không thì authHeader.split(' ')[1] sẽ lấy ra <token_string>
-        const token = authHeader && authHeader.split(' ')[1];
-        //xác nhận token hợp lệ
         if (!token) {
-            return res.status(401).json({ message: 'Access Token không tồn tại' });
+            return res.status(401).json({ message: "Không tìm thấy access token" });
         }
-        //tìm user
-        jwt.verify(token, env.ACCESS_TOKEN_SECRET, async (err, decodedUser) => {
 
+        // xác nhận token hợp lệ
+        jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, async (err, decodedUser) => {
             if (err) {
-                return res.status(403).json({ message: 'Access Token hết hạn hoặc không đúng' });
-            }
-            //lấy ra user từ decodedUser
-            const user = await User.findById(decodedUser.userId).select('-hashedPassword');
+                console.error(err);
 
-            //kiểm tra user có tồn tại hay không
+                return res
+                    .status(403)
+                    .json({ message: "Access token hết hạn hoặc không đúng" });
+            }
+
+            // tìm user
+            const user = await User.findById(decodedUser.userId).select("-hashedPassword");
+
             if (!user) {
-                return res.status(403).json({ message: 'Người dùng không tồn tại' });
+                return res.status(404).json({ message: "người dùng không tồn tại." });
             }
 
-            //nếu tồn tại user, thêm user vào req
+            // trả user về trong req
             req.user = user;
-
-            //xử lý request tiếp theo
             next();
-        })
-
-        //trả user về trong req
+        });
     } catch (error) {
-        console.error('Lỗi khi xác minh JWT trong authMiddleware', error);
-        res.status(500).json({ message: 'Lỗi hệ thống' });
+        console.error("Lỗi khi xác minh JWT trong authMiddleware", error);
+        return res.status(500).json({ message: "Lỗi hệ thống" });
     }
-}
+};

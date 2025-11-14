@@ -7,6 +7,7 @@ import cookieParser from 'cookie-parser';
 import userRoute from './routes/userRoute.js';
 import { protectedRoute } from './middlewares/authMiddleware.js';
 import cors from 'cors';
+import 'dotenv/config';
 
 const app = express();
 
@@ -17,8 +18,10 @@ const PORT = env.PORT || 5001;
 
 const __dirname = path.resolve();
 
-//public route
-app.use('/api/auth', authRoute)
+
+// API Routes
+app.use('/api/auth', authRoute);
+app.use('/api/users', protectedRoute, userRoute);
 
 
 if (env.NODE_ENV === 'production') {
@@ -29,9 +32,7 @@ if (env.NODE_ENV === 'production') {
     });
 }
 
-//private route
-app.use(protectedRoute)
-app.use('/api/users', userRoute)
+
 
 
 //start server and connect to database
