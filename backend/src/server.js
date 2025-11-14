@@ -6,10 +6,13 @@ import authRoute from './routes/authRoute.js';
 import cookieParser from 'cookie-parser';
 import userRoute from './routes/userRoute.js';
 import { protectedRoute } from './middlewares/authMiddleware.js';
+import cors from 'cors';
+
 const app = express();
 
 app.use(express.json());
 app.use(cookieParser());
+app.use(cors({ origin: env.CLIENT_URL, credentials: true }));
 const PORT = env.PORT || 5001;
 
 const __dirname = path.resolve();

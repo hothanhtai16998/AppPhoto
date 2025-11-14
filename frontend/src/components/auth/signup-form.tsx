@@ -2,7 +2,7 @@ import { cn } from "../../lib/utils"
 
 import { Card, CardContent } from "@/components/ui/card"
 
-import { Link } from "react-router"
+import { Link, useNavigate } from "react-router"
 import { Label } from "../ui/label"
 import { Input } from "../ui/input"
 import { Button } from "../ui/button"
@@ -10,6 +10,7 @@ import { z } from "zod"
 import { useForm } from "react-hook-form"
 
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useAuthStore } from "@/stores/userAuthStore"
 
 const signUpSchema = z.object({
   firstname: z.string().min(2, { message: "Họ không được để trống." }),
@@ -29,9 +30,9 @@ export function SignupForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
-  // const { signUp } = useAuthStore();
+  const { signUp } = useAuthStore();
 
-  // const navigate = useNavigate();
+  const navigate = useNavigate();
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<SignUpFormValue>({
     resolver: zodResolver(signUpSchema),
@@ -39,10 +40,10 @@ export function SignupForm({
 
   const onSubmit = async (data: SignUpFormValue) => {
     //gọi backend để xử lý
-    // const validatedData = data as SignupFormValue;
-    // const { firstname, lastname, username, email, password } = validatedData;
-    // await signUp(username, password, email, firstname, lastname)
-    // navigate("/signin");
+    const validatedData = data as SignUpFormValue;
+    const { firstname, lastname, username, email, password } = validatedData;
+    await signUp(username, password, email, firstname, lastname)
+    navigate("/signin");
   }
 
   return (
