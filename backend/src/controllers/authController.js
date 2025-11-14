@@ -9,6 +9,7 @@ import Session from '../models/Session.js';
 const ACCESS_TOKEN_TTL = '30m'
 const REFRESH_TOKEN_TTL = 14 * 24 * 60 * 60 * 1000; // 14 days
 
+//đã xong
 export const signUp = async (req, res) => {
     try {
         const { username, password, email, firstName, lastName } = req.body;
@@ -62,31 +63,35 @@ export const signUp = async (req, res) => {
     }
 }
 
-
+//đã xong
 export const signIn = async (req, res) => {
     try {
+        //lấy username và password từ request body mà người dùng nhập vào
         const { username, password } = req.body;
 
+        //kiểm tra tên tài khoản và mật khẩu có rỗng hay không
         if (!username || !password) {
             return res.status(400).json({ message: 'Thiếu tên tài khoản hoặc mật khẩu' });
         }
 
-        // Check if user exists
+        //Kiểm tra tài khoản có tồn tại hay không
         const user = await User.findOne({ username });
         if (!user) {
             return res.status(401).json({ message: 'Tài khoản hoặc mật khẩu không chính xác' });
         }
 
-        // Check if password is correct
+        //kiểm tra mật khẩu có khớp với mật khẩu đã được mã hoá trong db không
         const isPasswordMatch = await bcrypt.compare(password, user.hashedPassword);
         if (!isPasswordMatch) {
             return res.status(401).json({ message: 'Tài khoản hoặc mật khẩu không chính xác' });
         }
 
-        // Tạo JWT token
+        // Tạo access token để xác thực user
         const accessToken = jwt.sign({ userId: user._id }, env.ACCESS_TOKEN_SECRET, { expiresIn: ACCESS_TOKEN_TTL });
 
-        // Tạo refreshToken để lưu thông tin đăng nhập của user mà không cần phải đăng nhập lại
+        // Tạo refreshToken dùng để tạo access token mới
+        // refreshToken cỏ thể lưu thông tin đăng nhập của user
+        // mà không cần user phải đăng nhập lại sau khi refresh hoặc mở lại trang web
         const refreshToken = crypto.randomBytes(32).toString('hex');
 
         //tạo session mới để lưu refreshToken
@@ -106,6 +111,25 @@ export const signIn = async (req, res) => {
 
     } catch (error) {
         console.error('Lỗi khi gọi signIn', error);
+        res.status(500).json({ message: 'Lỗi hệ thống' });
+    }
+}
+
+export const signOut = async (req, res) => {
+    try {
+        //lấy refreshToken từ cookie
+        const token = req.cookies?.refreshToken;
+        if (token) {
+            //xoá refreshToken từ session hiện tại
+            await Session.deleteOne({ refreshToken: token });
+        }
+        //xoá cookie
+        res.clearCookie('refreshToken');
+
+        return res.sendStatus(204);
+
+    } catch (error) {
+        console.error('Lỗi khi gọi signOut', error);
         res.status(500).json({ message: 'Lỗi hệ thống' });
     }
 }

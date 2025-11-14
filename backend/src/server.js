@@ -3,15 +3,20 @@ import { env } from './libs/env.js';
 import { CONNECT_DB } from './configs/db.js';
 import path from 'path';
 import authRoute from './routes/authRoute.js';
-
+import cookieParser from 'cookie-parser';
+import userRoute from './routes/userRoute.js';
+import { protectedRoute } from './middlewares/authMiddleware.js';
 const app = express();
 
 app.use(express.json());
+app.use(cookieParser());
 const PORT = env.PORT || 5001;
 
 const __dirname = path.resolve();
 
+//public route
 app.use('/api/auth', authRoute)
+
 
 if (env.NODE_ENV === 'production') {
     app.use(express.static(path.join(__dirname, "../frontend/dist")));
@@ -21,8 +26,12 @@ if (env.NODE_ENV === 'production') {
     });
 }
 
+//private route
+app.use(protectedRoute)
+app.use('/api/users', userRoute)
 
 
+//start server and connect to database
 const START_DB = async () => {
     try {
         await CONNECT_DB()
