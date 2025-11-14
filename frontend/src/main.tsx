@@ -4,12 +4,15 @@ import './index.css'
 import App from './App.tsx'
 import { BrowserRouter } from 'react-router'
 import { Toaster } from 'sonner'
+import AuthInitializer from './components/auth/AuthInitializer.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <Toaster position="top-right" richColors />  {/* Add the Toaster component to display notifications */}
     <BrowserRouter>
-      <App />
+      <Toaster position="top-right" richColors />  {/* Add the Toaster component to display notifications */}
+      <AuthInitializer>
+        <App />
+      </AuthInitializer>
     </BrowserRouter>
   </StrictMode>,
 )
