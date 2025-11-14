@@ -1,3 +1,4 @@
+
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
@@ -9,8 +10,8 @@ import AuthInitializer from './components/auth/AuthInitializer.tsx'
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
-      <Toaster position="top-right" richColors />  {/* Add the Toaster component to display notifications */}
       <AuthInitializer>
+        <Toaster position="top-right" richColors />  {/* Add the Toaster component to display notifications */}
         <App />
       </AuthInitializer>
     </BrowserRouter>

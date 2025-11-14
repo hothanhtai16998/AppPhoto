@@ -8,6 +8,7 @@ export const useAuthStore =
 		accessToken: null,
 		user: null,
 		loading: false,
+		isInitializing: true,
 
 		setAccessToken: (accessToken) => {
 			set({ accessToken });
@@ -121,7 +122,6 @@ export const useAuthStore =
 
 		refresh: async () => {
 			try {
-				set({ loading: true });
 				const {
 					user,
 					fetchMe,
@@ -141,8 +141,16 @@ export const useAuthStore =
 					'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!'
 				);
 				get().clearState();
+			}
+		},
+
+		initializeApp: async () => {
+			try {
+				await get().refresh();
+			} catch (e) {
+				console.error(e);
 			} finally {
-				set({ loading: false });
+				set({ isInitializing: false });
 			}
 		},
 	}));

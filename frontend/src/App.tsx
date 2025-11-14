@@ -4,6 +4,7 @@ import SignInPage from "./pages/SignInPage";
 import SignUpPage from "./pages/SignUpPage";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import ProfilePage from "./pages/ProfilePage";
+import UploadPage from "./pages/UploadPage";
 
 
 function App() {
@@ -18,6 +19,7 @@ function App() {
       {/**protected routes */}
       <Route element={<ProtectedRoute />}>
         <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/upload" element={<UploadPage />} />
 
       </Route>
 

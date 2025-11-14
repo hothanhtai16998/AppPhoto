@@ -7,6 +7,7 @@ import cookieParser from 'cookie-parser';
 import userRoute from './routes/userRoute.js';
 import { protectedRoute } from './middlewares/authMiddleware.js';
 import cors from 'cors';
+import imageRoute from './routes/imageRoute.js';
 import 'dotenv/config';
 
 const app = express();
@@ -22,6 +23,7 @@ const __dirname = path.resolve();
 // API Routes
 app.use('/api/auth', authRoute);
 app.use('/api/users', protectedRoute, userRoute);
+app.use('/api/images', protectedRoute, imageRoute);
 
 
 if (env.NODE_ENV === 'production') {

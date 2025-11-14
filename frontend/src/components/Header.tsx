@@ -70,7 +70,7 @@ export const Header = memo(function Header() {
 
   const handleSignOut = async () => {
     await signOut()
-    navigate("/signin")
+    navigate("/")
   }
 
   return (
