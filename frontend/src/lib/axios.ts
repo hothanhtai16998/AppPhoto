@@ -1,76 +1,127 @@
 import { useAuthStore } from '@/stores/useAuthStore';
-import axios from 'axios';
+import axios, {
+	AxiosError,
+} from 'axios';
+import type { InternalAxiosRequestConfig } from 'axios';
+import {
+	API_CONFIG,
+	HTTP_STATUS,
+} from '@/constants/api';
+import type { ApiError } from '@/types/api';
 
 const api = axios.create({
-	baseURL:
-		import.meta.env.MODE ===
-		'development'
-			? 'http://localhost:3000/api'
-			: '/api',
+	baseURL: API_CONFIG.BASE_URL,
 	withCredentials: true,
+	timeout: API_CONFIG.TIMEOUT,
+	headers: {
+		'Content-Type': 'application/json',
+	},
 });
 
-// gắn access token vào req header
+/**
+ * Request interceptor - Attach access token to request headers
+ */
 api.interceptors.request.use(
-	(config) => {
+	(
+		config: InternalAxiosRequestConfig
+	) => {
 		const { accessToken } =
 			useAuthStore.getState();
 
-		if (accessToken) {
+		if (accessToken && config.headers) {
 			config.headers.Authorization = `Bearer ${accessToken}`;
 		}
 
 		return config;
+	},
+	(error) => {
+		return Promise.reject(error);
 	}
 );
 
-// tự động gọi refresh api khi access token hết hạn
+/**
+ * Response interceptor - Handle token refresh and error handling
+ */
 api.interceptors.response.use(
-	(res) => res,
-	async (error) => {
+	(response) => response,
+	async (
+		error: AxiosError<ApiError>
+	) => {
 		const originalRequest =
-			error.config;
+			error.config as InternalAxiosRequestConfig & {
+				_retry?: boolean;
+				_retryCount?: number;
+			};
 
-		// những api không cần check
+		// Skip token refresh for auth endpoints
+		const authEndpoints = [
+			API_CONFIG.ENDPOINTS.AUTH.SIGNIN,
+			API_CONFIG.ENDPOINTS.AUTH.SIGNUP,
+			API_CONFIG.ENDPOINTS.AUTH.REFRESH,
+		];
+
 		if (
-			originalRequest.url.includes(
-				'/auth/signin'
-			) ||
-			originalRequest.url.includes(
-				'/auth/signup'
-			) ||
-			originalRequest.url.includes(
-				'/auth/refresh'
+			originalRequest?.url &&
+			authEndpoints.some((endpoint) =>
+				originalRequest.url?.includes(
+					endpoint
+				)
 			)
 		) {
 			return Promise.reject(error);
 		}
 
-		originalRequest._retryCount =
-			originalRequest._retryCount || 0;
-
+		// Handle 401/403 errors - token expired or invalid
 		if (
-			error.response?.status === 403 &&
-			originalRequest._retryCount < 4
+			error.response &&
+			(error.response.status ===
+				HTTP_STATUS.UNAUTHORIZED ||
+				error.response.status ===
+					HTTP_STATUS.FORBIDDEN) &&
+			originalRequest &&
+			!originalRequest._retry
 		) {
-			originalRequest._retryCount += 1;
+			originalRequest._retry = true;
+			originalRequest._retryCount =
+				(originalRequest._retryCount ||
+					0) + 1;
 
-			try {
-				const res = await api.post(
-					'/auth/refresh',
-					{ withCredentials: true }
-				);
-				const newAccessToken =
-					res.data.accessToken;
-
+			// Limit retry attempts
+			if (
+				originalRequest._retryCount >
+				API_CONFIG.MAX_RETRY_COUNT
+			) {
 				useAuthStore
 					.getState()
-					.setAccessToken(
-						newAccessToken
-					);
+					.clearState();
+				return Promise.reject(error);
+			}
 
-				originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-				return api(originalRequest);
+			try {
+				const response = await api.post(
+					API_CONFIG.ENDPOINTS.AUTH
+						.REFRESH,
+					null,
+					{
+						withCredentials: true,
+					}
+				);
+				const newAccessToken =
+					response.data.accessToken;
+
+				if (newAccessToken) {
+					useAuthStore
+						.getState()
+						.setAccessToken(
+							newAccessToken
+						);
+
+					if (originalRequest.headers) {
+						originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+					}
+
+					return api(originalRequest);
+				}
 			} catch (refreshError) {
 				useAuthStore
 					.getState()
@@ -81,7 +132,44 @@ api.interceptors.response.use(
 			}
 		}
 
-		return Promise.reject(error);
+		// Handle network errors
+		if (!error.response) {
+			const isConnectionRefused =
+				error.code === 'ECONNREFUSED' ||
+				error.message?.includes(
+					'ERR_CONNECTION_REFUSED'
+				) ||
+				error.message?.includes(
+					'Network Error'
+				);
+
+			const networkError: ApiError = {
+				success: false,
+				error: isConnectionRefused
+					? 'Cannot connect to server. Please make sure the backend server is running.'
+					: 'Network error. Please check your connection.',
+			};
+			return Promise.reject(
+				networkError
+			);
+		}
+
+		// Extract error message from response
+		const errorMessage =
+			error.response.data?.error ||
+			error.response.data?.message ||
+			error.message ||
+			'An unexpected error occurred';
+
+		const apiError: ApiError = {
+			success: false,
+			error: errorMessage,
+			message:
+				error.response.data?.message,
+			details: error.response.data,
+		};
+
+		return Promise.reject(apiError);
 	}
 );
 

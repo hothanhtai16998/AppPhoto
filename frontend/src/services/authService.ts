@@ -1,59 +1,83 @@
 import api from '@/lib/axios';
+import { API_CONFIG } from '@/constants/api';
+import type { ApiResponse } from '@/types/api';
+import type { User } from '@/types/user';
+
+interface SignUpData {
+	username: string;
+	password: string;
+	email: string;
+	firstName: string;
+	lastName: string;
+}
+
+interface SignInData {
+	username: string;
+	password: string;
+}
+
+interface SignInResponse {
+	accessToken: string;
+	message?: string;
+}
 
 export const authService = {
 	signUp: async (
-		username: string,
-		password: string,
-		email: string,
-		firstName: string,
-		lastName: string
-	) => {
-		const res = await api.post(
-			'/auth/signup',
+		data: SignUpData
+	): Promise<void> => {
+		await api.post<ApiResponse>(
+			API_CONFIG.ENDPOINTS.AUTH.SIGNUP,
+			data,
 			{
-				username,
-				password,
-				email,
-				firstName,
-				lastName,
-			},
-			{ withCredentials: true }
+				withCredentials: true,
+			}
 		);
-
-		return res.data;
 	},
 
 	signIn: async (
-		username: string,
-		password: string
-	) => {
-		const res = await api.post(
-			'auth/signin',
-			{ username, password },
-			{ withCredentials: true }
-		);
-		return res.data; // access token
+		data: SignInData
+	): Promise<SignInResponse> => {
+		const res =
+			await api.post<SignInResponse>(
+				API_CONFIG.ENDPOINTS.AUTH
+					.SIGNIN,
+				data,
+				{ withCredentials: true }
+			);
+		return res.data;
 	},
 
-	signOut: async () => {
-		return api.post('/auth/signout', {
+	signOut: async (): Promise<void> => {
+		await api.post(
+			API_CONFIG.ENDPOINTS.AUTH.SIGNOUT,
+			{}, // Send empty object instead of null
+			{
+				withCredentials: true,
+			}
+		);
+	},
+
+	fetchMe: async (): Promise<User> => {
+		const res = await api.get<
+			ApiResponse<{ user: User }>
+		>(API_CONFIG.ENDPOINTS.USERS.ME, {
 			withCredentials: true,
 		});
+		// Backend returns { success: true, user: User }
+		return (res.data as { user: User })
+			.user;
 	},
 
-	fetchMe: async () => {
-		const res = await api.get(
-			'/users/me',
-			{ withCredentials: true }
-		);
-		return res.data.user;
-	},
-
-	refresh: async () => {
-		const res = await api.post(
-			'/auth/refresh',
-			{ withCredentials: true }
-		);
-		return res.data.accessToken;
-	},
+	refresh:
+		async (): Promise<string> => {
+			const res = await api.post<{
+				accessToken: string;
+			}>(
+				API_CONFIG.ENDPOINTS.AUTH
+					.REFRESH,
+				{}, // Send empty object instead of null
+				{ withCredentials: true }
+			);
+			return res.data.accessToken;
+		},
 };

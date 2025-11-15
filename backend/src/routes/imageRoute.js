@@ -1,16 +1,12 @@
 import express from 'express';
 import { getAllImages, uploadImage, getImagesByUserId } from '../controllers/imageController.js';
 import { singleUpload } from '../middlewares/multerMiddleware.js';
-// import { arcjetProtection } from '../middlewares/arcjetMiddleware.js';
-
+import { validateImageUpload } from '../middlewares/validation.js';
 
 const router = express.Router();
 
-// router.use(arcjetProtection);
-
 router.get('/', getAllImages);
-router.post('/upload', singleUpload, uploadImage);
-
-router.get('/user/:id', getImagesByUserId);
+router.post('/upload', singleUpload, validateImageUpload, uploadImage);
+router.get('/user/:userId', getImagesByUserId);
 
 export default router;

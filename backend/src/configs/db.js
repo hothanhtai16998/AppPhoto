@@ -1,11 +1,32 @@
-import mongoose from'mongoose';
-import {env} from '../libs/env.js';
+import mongoose from 'mongoose';
+import { env } from '../libs/env.js';
+import { logger } from '../utils/logger.js';
+
 export const CONNECT_DB = async () => {
     try {
-        await mongoose.connect(env.MONGODB_URI);
-        console.log('MongoDB connected...');
+        const options = {
+            serverSelectionTimeoutMS: 5000,
+            socketTimeoutMS: 45000,
+        };
+
+        await mongoose.connect(env.MONGODB_URI, options);
+
+        logger.info('MongoDB connected successfully');
+
+        // Handle connection events
+        mongoose.connection.on('error', (err) => {
+            logger.error('MongoDB connection error:', err);
+        });
+
+        mongoose.connection.on('disconnected', () => {
+            logger.warn('MongoDB disconnected');
+        });
+
+        mongoose.connection.on('reconnected', () => {
+            logger.info('MongoDB reconnected');
+        });
     } catch (error) {
-        console.error(`Error connecting to MongoDB: ${error.message}`);
+        logger.error(`Error connecting to MongoDB: ${error.message}`);
         process.exit(1);
     }
-}
+};

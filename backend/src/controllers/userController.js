@@ -1,12 +1,11 @@
-export const authMe = async (req, res) => {
-    try {
-        const user = req.user; // lấy từ authMiddleware
+import { asyncHandler } from '../middlewares/errorHandler.js';
 
-        return res.status(200).json({
-            user,
-        });
-    } catch (error) {
-        console.error("Lỗi khi gọi authMe", error);
-        return res.status(500).json({ message: "Lỗi hệ thống" });
-    }
-};
+export const authMe = asyncHandler(async (req, res) => {
+    // User is already attached to req by protectedRoute middleware
+    const user = req.user;
+
+    res.status(200).json({
+        success: true,
+        user,
+    });
+});

@@ -1,166 +1,144 @@
-// @ts-nocheck
 import bcrypt from "bcrypt";
 import User from "../models/User.js";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import Session from "../models/Session.js";
+import { ConflictError, AuthenticationError, AppError } from "../utils/errors.js";
+import { asyncHandler } from "../middlewares/errorHandler.js";
+import { TOKEN_CONFIG, PASSWORD_CONFIG } from "../utils/constants.js";
+import { env } from "../libs/env.js";
 
-const ACCESS_TOKEN_TTL = "30m"; // thuờng là dưới 15m
-const REFRESH_TOKEN_TTL = 14 * 24 * 60 * 60 * 1000; // 14 ngày
+export const signUp = asyncHandler(async (req, res) => {
+    const { username, password, email, firstName, lastName } = req.body;
 
-export const signUp = async (req, res) => {
-    try {
-        const { username, password, email, firstName, lastName } = req.body;
+    // Check if username already exists
+    const existingUser = await User.findOne({
+        $or: [{ username }, { email }]
+    });
 
-        if (!username || !password || !email || !firstName || !lastName) {
-            return res.status(400).json({
-                message: "Không thể thiếu username, password, email, firstName, và lastName",
-            });
+    if (existingUser) {
+        if (existingUser.username === username) {
+            throw new ConflictError("Username already exists");
         }
-
-        // kiểm tra username tồn tại chưa
-        const duplicate = await User.findOne({ username });
-
-        if (duplicate) {
-            return res.status(409).json({ message: "username đã tồn tại" });
-        }
-
-        // mã hoá password
-        const hashedPassword = await bcrypt.hash(password, 10); // salt = 10
-
-        // tạo user mới
-        await User.create({
-            username,
-            hashedPassword,
-            email,
-            displayName: `${firstName} ${lastName}`,
-        });
-
-        // return
-        return res.sendStatus(204);
-    } catch (error) {
-        console.error("Lỗi khi gọi signUp", error);
-        return res.status(500).json({ message: "Lỗi hệ thống" });
+        throw new ConflictError("Email already exists");
     }
-};
 
-export const signIn = async (req, res) => {
-    try {
-        // lấy inputs
-        const { username, password } = req.body;
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, PASSWORD_CONFIG.SALT_ROUNDS);
 
-        if (!username || !password) {
-            return res.status(400).json({ message: "Thiếu username hoặc password." });
-        }
+    // Create new user
+    await User.create({
+        username: username.toLowerCase(),
+        hashedPassword,
+        email: email.toLowerCase(),
+        displayName: `${firstName} ${lastName}`,
+    });
 
-        // lấy hashedPassword trong db để so với password input
-        const user = await User.findOne({ username });
+    res.status(204).send();
+});
 
-        if (!user) {
-            return res
-                .status(401)
-                .json({ message: "username hoặc password không chính xác" });
-        }
+export const signIn = asyncHandler(async (req, res) => {
+    const { username, password } = req.body;
 
-        // kiểm tra password
-        const passwordCorrect = await bcrypt.compare(password, user.hashedPassword);
+    // Validate input
+    if (!username || !password) {
+        throw new AuthenticationError("Username and password are required");
+    }
 
-        if (!passwordCorrect) {
-            return res
-                .status(401)
-                .json({ message: "username hoặc password không chính xác" });
-        }
+    // Find user by username (case-insensitive) and include hashedPassword
+    const user = await User.findOne({ username: username.toLowerCase() })
+        .select('+hashedPassword');
 
-        // nếu khớp, tạo accessToken với JWT
-        const accessToken = jwt.sign(
-            { userId: user._id },
-            // @ts-ignore
-            process.env.ACCESS_TOKEN_SECRET,
-            { expiresIn: ACCESS_TOKEN_TTL }
-        );
+    if (!user) {
+        throw new AuthenticationError("Invalid username or password");
+    }
 
-        // tạo refresh token
-        const refreshToken = crypto.randomBytes(64).toString("hex");
+    // Verify password
+    if (!user.hashedPassword) {
+        throw new AuthenticationError("Invalid user data");
+    }
 
-        // tạo session mới để lưu refresh token
-        await Session.create({
-            userId: user._id,
-            refreshToken,
-            expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL),
-        });
+    const passwordCorrect = await bcrypt.compare(password, user.hashedPassword);
 
-        // trả refresh token về trong cookie
-        res.cookie("refreshToken", refreshToken, {
+    if (!passwordCorrect) {
+        throw new AuthenticationError("Invalid username or password");
+    }
+
+    // Generate access token
+    const accessToken = jwt.sign(
+        { userId: user._id },
+        env.ACCESS_TOKEN_SECRET,
+        { expiresIn: TOKEN_CONFIG.ACCESS_TOKEN_TTL }
+    );
+
+    // Generate refresh token
+    const refreshToken = crypto.randomBytes(TOKEN_CONFIG.REFRESH_TOKEN_LENGTH).toString("hex");
+
+    // Create session to store refresh token
+    await Session.create({
+        userId: user._id,
+        refreshToken,
+        expiresAt: new Date(Date.now() + TOKEN_CONFIG.REFRESH_TOKEN_TTL),
+    });
+
+    // Set refresh token in HTTP-only cookie
+    res.cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        secure: env.NODE_ENV === 'production',
+        sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+        maxAge: TOKEN_CONFIG.REFRESH_TOKEN_TTL,
+    });
+
+    res.status(200).json({
+        message: `User ${user.displayName} logged in successfully`,
+        accessToken,
+    });
+});
+
+export const signOut = asyncHandler(async (req, res) => {
+    const token = req.cookies?.refreshToken;
+
+    if (token) {
+        // Delete refresh token from session
+        await Session.deleteOne({ refreshToken: token });
+
+        // Clear cookie
+        res.clearCookie("refreshToken", {
             httpOnly: true,
-            secure: true,
-            sameSite: "none", //backend, frontend deploy riêng
-            maxAge: REFRESH_TOKEN_TTL,
+            secure: env.NODE_ENV === 'production',
+            sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
         });
-
-        // trả access token về trong res
-        return res
-            .status(200)
-            .json({ message: `User ${user.displayName} đã logged in!`, accessToken });
-    } catch (error) {
-        console.error("Lỗi khi gọi signIn", error);
-        return res.status(500).json({ message: "Lỗi hệ thống" });
     }
-};
 
-export const signOut = async (req, res) => {
-    try {
-        // lấy refresh token từ cookie
-        const token = req.cookies?.refreshToken;
+    res.status(204).send();
+});
 
-        if (token) {
-            // xoá refresh token trong Session
-            await Session.deleteOne({ refreshToken: token });
+export const refreshToken = asyncHandler(async (req, res) => {
+    const token = req.cookies?.refreshToken;
 
-            // xoá cookie
-            res.clearCookie("refreshToken");
-        }
-
-        return res.sendStatus(204);
-    } catch (error) {
-        console.error("Lỗi khi gọi signOut", error);
-        return res.status(500).json({ message: "Lỗi hệ thống" });
+    if (!token) {
+        throw new AuthenticationError("Refresh token not found");
     }
-};
 
-// tạo access token mới từ refresh token
-export const refreshToken = async (req, res) => {
-    try {
-        // lấy refresh token từ cookie
-        const token = req.cookies?.refreshToken;
-        if (!token) {
-            return res.status(401).json({ message: "Token không tồn tại." });
-        }
+    // Find session by refresh token
+    const session = await Session.findOne({ refreshToken: token });
 
-        // so với refresh token trong db
-        const session = await Session.findOne({ refreshToken: token });
-
-        if (!session) {
-            return res.status(403).json({ message: "Token không hợp lệ hoặc đã hết hạn" });
-        }
-
-        // kiểm tra hết hạn chưa
-        if (session.expiresAt < new Date()) {
-            return res.status(403).json({ message: "Token đã hết hạn." });
-        }
-
-        // tạo access token mới
-        const accessToken = jwt.sign(
-            {
-                userId: session.userId,
-            },
-            process.env.ACCESS_TOKEN_SECRET,
-            { expiresIn: ACCESS_TOKEN_TTL }
-        );
-
-        // return
-        return res.status(200).json({ accessToken });
-    } catch (error) {
-        console.error("Lỗi khi gọi refreshToken", error);
-        return res.status(500).json({ message: "Lỗi hệ thống" });
+    if (!session) {
+        throw new AuthenticationError("Invalid or expired refresh token");
     }
-};
+
+    // Check if token has expired
+    if (session.expiresAt < new Date()) {
+        await Session.deleteOne({ refreshToken: token });
+        throw new AuthenticationError("Refresh token has expired");
+    }
+
+    // Generate new access token
+    const accessToken = jwt.sign(
+        { userId: session.userId },
+        env.ACCESS_TOKEN_SECRET,
+        { expiresIn: TOKEN_CONFIG.ACCESS_TOKEN_TTL }
+    );
+
+    res.status(200).json({ accessToken });
+});

@@ -19,26 +19,34 @@ export const useImageStore = create(
 				state.error = null;
 			});
 			try {
-				const newImage =
+				const response =
 					await imageService.uploadImage(
 						data
 					);
 				set((state) => {
-					state.images.unshift(
-						newImage.image
-					);
+					if (response.image) {
+						state.images.unshift(
+							response.image
+						);
+					}
 					state.loading = false;
 				});
-			} catch (error) {
+			} catch (error: unknown) {
+				const errorMessage =
+					error &&
+					typeof error === 'object' &&
+					'error' in error
+						? String(error.error)
+						: 'Failed to upload image.';
 				console.error(
 					'Failed to upload image:',
 					error
 				);
 				set((state) => {
 					state.loading = false;
-					state.error =
-						'Failed to upload image.';
+					state.error = errorMessage;
 				});
+				throw error;
 			}
 		},
 		fetchImages: async () => {
@@ -53,16 +61,22 @@ export const useImageStore = create(
 					state.images = images;
 					state.loading = false;
 				});
-			} catch (error) {
+			} catch (error: unknown) {
+				const errorMessage =
+					error &&
+					typeof error === 'object' &&
+					'error' in error
+						? String(error.error)
+						: 'Failed to fetch images.';
 				console.error(
 					'Failed to fetch images:',
 					error
 				);
 				set((state) => {
 					state.loading = false;
-					state.error =
-						'Failed to fetch images.';
+					state.error = errorMessage;
 				});
+				throw error;
 			}
 		},
 	}))

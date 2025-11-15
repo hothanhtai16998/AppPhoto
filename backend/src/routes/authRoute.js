@@ -1,17 +1,12 @@
 import express from 'express';
 import { signUp, signIn, signOut, refreshToken } from '../controllers/authController.js';
+import { validateSignUp, validateSignIn } from '../middlewares/validation.js';
 
 const router = express.Router();
 
-router.get('/test', (req, res) => {
-    res.send({ message: 'Hello, Express!' });
-})
-
-
-router.post('/signup', signUp)
-router.post('/signin', signIn)
-router.post('/signout', signOut)
-
-router.post("/refresh", refreshToken);
+router.post('/signup', validateSignUp, signUp);
+router.post('/signin', validateSignIn, signIn);
+router.post('/signout', signOut);
+router.post('/refresh', refreshToken);
 
 export default router;
