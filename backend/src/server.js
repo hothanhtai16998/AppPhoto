@@ -3,6 +3,7 @@ import { env } from './libs/env.js';
 import { CONNECT_DB } from './configs/db.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { existsSync } from 'fs';
 import authRoute from './routes/authRoute.js';
 import cookieParser from 'cookie-parser';
 import userRoute from './routes/userRoute.js';
@@ -44,24 +45,47 @@ app.use((err, req, res, next) => {
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 
+// Health check endpoint (before catch-all routes)
+app.get('/health', (_, res) => {
+    res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // API Routes
 app.use('/api/auth', authRoute);
 app.use('/api/users', protectedRoute, userRoute);
 app.use('/api/images', protectedRoute, imageRoute);
 
-// Serve static files in production
+// Serve static files in production (only if dist folder exists)
 if (env.NODE_ENV === 'production') {
-    app.use(express.static(path.join(__dirname, '../frontend/dist')));
+    const distPath = path.join(__dirname, '../frontend/dist');
+    const indexPath = path.join(distPath, 'index.html');
 
-    app.get('*', (_, res) => {
-        res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
-    });
+    if (existsSync(distPath) && existsSync(indexPath)) {
+        app.use(express.static(distPath));
+
+        // Serve index.html for all non-API routes (must be last)
+        app.get('*', (req, res, next) => {
+            // Skip if this is an API route
+            if (req.path.startsWith('/api')) {
+                return next();
+            }
+            res.sendFile(indexPath);
+        });
+
+        logger.info('Static files are being served from:', distPath);
+    } else {
+        logger.warn('Static files not found. Skipping static file serving.');
+        logger.warn('Expected path:', distPath);
+
+        // If static files don't exist, provide a helpful message for root route
+        app.get('/', (_, res) => {
+            res.status(404).json({
+                success: false,
+                error: 'Frontend build not found. Please ensure the frontend is built and deployed correctly.',
+            });
+        });
+    }
 }
-
-// Health check endpoint
-app.get('/health', (_, res) => {
-    res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
-});
 
 // Global error handler (must be last)
 app.use(errorHandler);
