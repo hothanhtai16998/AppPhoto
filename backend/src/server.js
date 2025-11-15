@@ -59,27 +59,49 @@ app.use('/api/images', protectedRoute, imageRoute);
 // You can disable this by setting DISABLE_STATIC_FILES=true in your .env
 if (env.NODE_ENV === 'production' && !process.env.DISABLE_STATIC_FILES) {
     // Try multiple possible paths for dist folder
+    // Order matters: try most likely paths first
     const possiblePaths = [
-        path.join(__dirname, '../frontend/dist'),           // Local development/deployment
-        path.join(__dirname, '../../frontend/dist'),        // Render/monorepo structure
-        path.join(process.cwd(), 'frontend/dist'),          // From project root
+        path.join(process.cwd(), 'frontend/dist'),          // From project root (Render default)
+        path.join(__dirname, '../../frontend/dist'),        // backend/src -> .. -> frontend/dist (monorepo)
+        path.join(__dirname, '../../../frontend/dist'),     // backend/src -> backend -> .. -> frontend/dist
+        path.join(__dirname, '../frontend/dist'),           // backend/src -> backend -> frontend/dist (if frontend in backend)
+        path.join(process.cwd(), '../frontend/dist'),       // From backend folder
+        path.resolve('frontend/dist'),                      // Absolute from current working directory
+        path.resolve('../frontend/dist'),                   // One level up
     ];
 
     let distPath = null;
     let indexPath = null;
 
+    // Log all paths for debugging
+    logger.info('Looking for static files...');
+    logger.info('Current working directory:', process.cwd());
+    logger.info('__dirname:', __dirname);
+    logger.info('NODE_ENV:', env.NODE_ENV);
+    logger.info('DISABLE_STATIC_FILES:', process.env.DISABLE_STATIC_FILES || 'not set');
+
     // Find the first existing dist folder
     for (const possiblePath of possiblePaths) {
         const possibleIndexPath = path.join(possiblePath, 'index.html');
-        if (existsSync(possiblePath) && existsSync(possibleIndexPath)) {
+        const distExists = existsSync(possiblePath);
+        const indexExists = existsSync(possibleIndexPath);
+        
+        logger.info(`Checking: ${possiblePath}`);
+        logger.info(`  - dist folder exists: ${distExists}`);
+        logger.info(`  - index.html exists: ${indexExists}`);
+
+        if (distExists && indexExists) {
             distPath = possiblePath;
             indexPath = possibleIndexPath;
+            logger.info(`✅ Found static files at: ${distPath}`);
             break;
         }
     }
 
     if (distPath && indexPath) {
-        app.use(express.static(distPath));
+        app.use(express.static(distPath, {
+            maxAge: '1d', // Cache static files for 1 day
+        }));
 
         // Serve index.html for all non-API routes (must be last)
         app.get('*', (req, res, next) => {
@@ -87,13 +109,23 @@ if (env.NODE_ENV === 'production' && !process.env.DISABLE_STATIC_FILES) {
             if (req.path.startsWith('/api') || req.path === '/health') {
                 return next();
             }
-            res.sendFile(indexPath);
+            res.sendFile(indexPath, (err) => {
+                if (err) {
+                    logger.error('Error serving index.html:', err);
+                    next(err);
+                }
+            });
         });
 
-        logger.info('Static files are being served from:', distPath);
+        logger.info('✅ Static files are being served from:', distPath);
     } else {
-        logger.warn('Static files not found. Running in API-only mode.');
-        logger.warn('Tried paths:', possiblePaths);
+        logger.warn('⚠️ Static files not found. Running in API-only mode.');
+        const pathChecks = possiblePaths.map(p => ({
+            path: p,
+            distExists: existsSync(p),
+            indexExists: existsSync(path.join(p, 'index.html')),
+        }));
+        logger.warn('Tried paths:', JSON.stringify(pathChecks, null, 2));
 
         // If static files don't exist, provide helpful API info for root route
         app.get('/', (_, res) => {
@@ -108,6 +140,13 @@ if (env.NODE_ENV === 'production' && !process.env.DISABLE_STATIC_FILES) {
                     images: '/api/images',
                 },
                 note: 'Frontend build not found. This is API-only mode. To serve static files, ensure the frontend is built and placed in the correct location.',
+                debug: {
+                    cwd: process.cwd(),
+                    __dirname: __dirname,
+                    nodeEnv: env.NODE_ENV,
+                    disableStaticFiles: process.env.DISABLE_STATIC_FILES || 'not set',
+                    triedPaths: pathChecks,
+                },
             });
         });
     }

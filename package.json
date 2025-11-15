@@ -1,22 +1,33 @@
 {
-  "name": "appphoto",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "build": "npm install --prefix backend && npm install --prefix frontend --production=false && npm run build --prefix frontend",
-    "start": "npm run start --prefix backend"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/hothanhtai16998/AppPhoto.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/hothanhtai16998/AppPhoto/issues"
-  },
-  "homepage": "https://github.com/hothanhtai16998/AppPhoto#readme"
+	"name": "appphoto",
+	"version": "1.0.0",
+	"description": "Full-stack photo sharing application",
+	"main": "index.js",
+	"scripts": {
+		"install:all": "npm install --prefix backend && npm install --prefix frontend",
+		"build": "npm run install:all && npm run build --prefix frontend",
+		"build:frontend": "npm run build --prefix frontend",
+		"build:backend": "npm install --prefix backend",
+		"postinstall": "cd frontend && npm install",
+		"start": "npm run start --prefix backend",
+		"start:prod": "npx cross-env NODE_ENV=production npm run start --prefix backend",
+		"test:production": "npm run build && npm run start:prod",
+		"dev:backend": "npm run dev --prefix backend",
+		"dev:frontend": "npm run dev --prefix frontend"
+	},
+	"devDependencies": {
+		"cross-env": "^7.0.3"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/hothanhtai16998/AppPhoto.git"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"type": "commonjs",
+	"bugs": {
+		"url": "https://github.com/hothanhtai16998/AppPhoto/issues"
+	},
+	"homepage": "https://github.com/hothanhtai16998/AppPhoto#readme"
 }

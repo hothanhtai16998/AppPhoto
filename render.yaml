@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: appphoto
+    env: node
+    buildCommand: npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      # Add these in Render Dashboard:
+      # MONGODB_URI
+      # ACCESS_TOKEN_SECRET
+      # CLIENT_URL
+      # CLOUDINARY_CLOUD_NAME
+      # CLOUDINARY_API_KEY
+      # CLOUDINARY_API_SECRET
+

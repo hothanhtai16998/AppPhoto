@@ -14,4 +14,14 @@ export default defineConfig({
 			),
 		},
 	},
+	// Ensure correct base path for production deployment
+	base:
+		process.env.NODE_ENV ===
+		'production'
+			? '/'
+			: '/',
+	build: {
+		outDir: 'dist',
+		emptyOutDir: true,
+	},
 });
