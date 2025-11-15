@@ -12,7 +12,6 @@ const userSchema = new mongoose.Schema(
             minlength: [VALIDATION.USERNAME_MIN_LENGTH, `Username must be at least ${VALIDATION.USERNAME_MIN_LENGTH} characters`],
             maxlength: [VALIDATION.USERNAME_MAX_LENGTH, `Username must be at most ${VALIDATION.USERNAME_MAX_LENGTH} characters`],
             match: [/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores"],
-            index: true,
         },
         hashedPassword: {
             type: String,
@@ -27,7 +26,6 @@ const userSchema = new mongoose.Schema(
             trim: true,
             maxlength: [VALIDATION.EMAIL_MAX_LENGTH, `Email must be at most ${VALIDATION.EMAIL_MAX_LENGTH} characters`],
             match: [/^\S+@\S+\.\S+$/, "Please provide a valid email address"],
-            index: true,
         },
         displayName: {
             type: String,
@@ -67,8 +65,7 @@ const userSchema = new mongoose.Schema(
 );
 
 // Indexes for better query performance
-userSchema.index({ username: 1 });
-userSchema.index({ email: 1 });
+// Note: username and email already have indexes from unique: true
 userSchema.index({ createdAt: -1 });
 
 const User = mongoose.model("User", userSchema);

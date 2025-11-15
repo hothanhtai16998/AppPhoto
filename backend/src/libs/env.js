@@ -10,6 +10,7 @@ const requiredEnvVars = [
 	'CLOUDINARY_CLOUD_NAME',
 	'CLOUDINARY_API_KEY',
 	'CLOUDINARY_API_SECRET',
+	'DISABLE_STATIC_FILES'
 ];
 
 /**
@@ -44,4 +45,5 @@ export const env = {
 	CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
 	ARCJET_KEY: process.env.ARCJET_KEY,
 	ARCJET_ENV: process.env.ARCJET_ENV,
+	DISABLE_STATIC_FILES: process.env.DISABLE_STATIC_FILES
 };

@@ -7,7 +7,6 @@ const imageSchema = new mongoose.Schema(
             type: String,
             required: [true, "Public ID is required"],
             unique: true,
-            index: true,
         },
         imageTitle: {
             type: String,
@@ -54,10 +53,10 @@ const imageSchema = new mongoose.Schema(
 );
 
 // Indexes for better query performance
+// Note: publicId already has an index from unique: true
 imageSchema.index({ uploadedBy: 1, createdAt: -1 });
 imageSchema.index({ imageCategory: 1, createdAt: -1 });
 imageSchema.index({ createdAt: -1 });
-imageSchema.index({ publicId: 1 });
 
 const Image = mongoose.model('Image', imageSchema);
 
