@@ -85,7 +85,7 @@ if (env.NODE_ENV === 'production' && !process.env.DISABLE_STATIC_FILES) {
         const possibleIndexPath = path.join(possiblePath, 'index.html');
         const distExists = existsSync(possiblePath);
         const indexExists = existsSync(possibleIndexPath);
-        
+
         logger.info(`Checking: ${possiblePath}`);
         logger.info(`  - dist folder exists: ${distExists}`);
         logger.info(`  - index.html exists: ${indexExists}`);
