@@ -58,14 +58,14 @@ export const authService = {
 	},
 
 	fetchMe: async (): Promise<User> => {
-		const res = await api.get<
-			ApiResponse<{ user: User }>
-		>(API_CONFIG.ENDPOINTS.USERS.ME, {
+		// Backend returns { success: true, user: User }
+		const res = await api.get<{
+			success: boolean;
+			user: User;
+		}>(API_CONFIG.ENDPOINTS.USERS.ME, {
 			withCredentials: true,
 		});
-		// Backend returns { success: true, user: User }
-		return (res.data as { user: User })
-			.user;
+		return res.data.user;
 	},
 
 	refresh:
